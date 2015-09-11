@@ -63,7 +63,7 @@ public abstract class AbstractConnectorExecutor<T> extends KinesisConnectorExecu
 
             configFileInputStream.close();
 
-            this.config = new KinesisConnectorConfiguration(mergedProperties, new DefaultAWSCredentialsProviderChain());
+            this.config = createConfig(mergedProperties);
         } catch (IOException e) {
             String msg = "Could not load properties file " + configFile + " from classpath";
             LOG.error(msg, e);
@@ -71,6 +71,10 @@ public abstract class AbstractConnectorExecutor<T> extends KinesisConnectorExecu
         }
 
         super.initialize(config, new NullMetricsFactory());
+    }
+
+    protected KinesisConnectorConfiguration createConfig(Properties properties) {
+    	return new KinesisConnectorConfiguration(properties, new DefaultAWSCredentialsProviderChain());
     }
 
     protected KinesisConnectorConfiguration getConfig() {

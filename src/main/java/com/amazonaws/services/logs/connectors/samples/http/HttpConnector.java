@@ -12,28 +12,28 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-package com.amazonaws.services.logs.connectors.samples.kinesis;
+package com.amazonaws.services.logs.connectors.samples.http;
 
 import com.amazonaws.services.kinesis.connectors.KinesisConnectorRecordProcessorFactory;
-import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.logs.connectors.samples.AbstractConnectorExecutor;
 import com.amazonaws.services.logs.subscriptions.CloudWatchLogsEvent;
 
-public class KinesisConnector extends AbstractConnectorExecutor<Record> {
+public class HttpConnector extends AbstractConnectorExecutor<String> {
 
-    private static String CONFIG_FILE = KinesisConnector.class.getSimpleName() + ".properties";
+    private static String CONFIG_FILE = HttpConnector.class.getSimpleName() + ".properties";
 
-    public KinesisConnector(String configFile) {
+    public HttpConnector(String configFile) {
         super(configFile);
     }
 
     @Override
-    public KinesisConnectorRecordProcessorFactory<CloudWatchLogsEvent, Record> getKinesisConnectorRecordProcessorFactory() {
-        return new KinesisConnectorRecordProcessorFactory<CloudWatchLogsEvent, Record>(new KinesisPipeline(), getConfig());
+    public KinesisConnectorRecordProcessorFactory<CloudWatchLogsEvent, String> getKinesisConnectorRecordProcessorFactory() {
+        return new KinesisConnectorRecordProcessorFactory<CloudWatchLogsEvent, String>(
+                new HttpPipeline(), getConfig());
     }
 
     public static void main(String[] args) {
-        KinesisConnector executor = new KinesisConnector(CONFIG_FILE);
+        HttpConnector executor = new HttpConnector(CONFIG_FILE);
         executor.run();
     }
 }

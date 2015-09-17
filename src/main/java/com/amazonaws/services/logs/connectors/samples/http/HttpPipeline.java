@@ -12,9 +12,12 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-package com.amazonaws.services.logs.connectors.samples.kinesis;
+package com.amazonaws.services.logs.connectors.samples.http;
+
+import java.io.IOException;
 
 import com.amazonaws.services.kinesis.connectors.KinesisConnectorConfiguration;
+import com.amazonaws.services.kinesis.connectors.http.HttpEmitter;
 import com.amazonaws.services.kinesis.connectors.impl.AllPassFilter;
 import com.amazonaws.services.kinesis.connectors.impl.BasicMemoryBuffer;
 import com.amazonaws.services.kinesis.connectors.interfaces.IBuffer;
@@ -22,30 +25,30 @@ import com.amazonaws.services.kinesis.connectors.interfaces.IEmitter;
 import com.amazonaws.services.kinesis.connectors.interfaces.IFilter;
 import com.amazonaws.services.kinesis.connectors.interfaces.IKinesisConnectorPipeline;
 import com.amazonaws.services.kinesis.connectors.interfaces.ITransformerBase;
-import com.amazonaws.services.kinesis.connectors.kinesis.KinesisEmitter;
-import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.logs.connectors.kinesis.KinesisTransformer;
+import com.amazonaws.services.logs.connectors.http.HttpTransformer;
 import com.amazonaws.services.logs.subscriptions.CloudWatchLogsEvent;
+import com.amazonaws.services.logs.subscriptions.CloudWatchLogsSubscriptionTransformer;
 
 /**
  * This sets up the processing pipeline for the KCL application.
  */
-public class KinesisPipeline implements IKinesisConnectorPipeline<CloudWatchLogsEvent, Record> {
+public class HttpPipeline implements IKinesisConnectorPipeline<CloudWatchLogsEvent, String> {
 
     @Override
-    public IEmitter<Record> getEmitter(KinesisConnectorConfiguration configuration) {
-        return new KinesisEmitter(configuration);
+    public IEmitter<String> getEmitter(KinesisConnectorConfiguration configuration) {
+        return new HttpEmitter(configuration);
     }
 
     @Override
     public IBuffer<CloudWatchLogsEvent> getBuffer(KinesisConnectorConfiguration configuration) {
+
         // a very basic in-heap buffer
         return new BasicMemoryBuffer<CloudWatchLogsEvent>(configuration);
     }
 
     @Override
-    public ITransformerBase<CloudWatchLogsEvent, Record> getTransformer(KinesisConnectorConfiguration configuration) {
-        return new KinesisTransformer();
+    public ITransformerBase<CloudWatchLogsEvent, String> getTransformer(KinesisConnectorConfiguration configuration) {
+        return new HttpTransformer();
     }
 
     @Override

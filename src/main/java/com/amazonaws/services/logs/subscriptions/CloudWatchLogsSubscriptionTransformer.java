@@ -18,6 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +36,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Converts a Kinesis record to a collection of CloudWatchLogsEvent records.
@@ -99,6 +102,41 @@ public abstract class CloudWatchLogsSubscriptionTransformer<T> implements
 
         return result;
     }
+
+	protected ObjectNode createJson(Collection<CloudWatchLogsEvent> events) throws IOException {
+		ObjectNode root = JSON_OBJECT_MAPPER.createObjectNode();
+		ArrayNode eventNodes = root.putArray("logEvents");
+
+		CloudWatchLogsEvent first = null;
+
+		for (CloudWatchLogsEvent event : events) {
+			if (first == null) first = event;
+
+			ObjectNode eventNode = eventNodes.addObject();
+			eventNode.put("id", event.getId());
+			eventNode.put("timestamp", "" + event.getTimestamp());
+			eventNode.put("message", event.getMessage());
+		}
+
+		root.put("owner", first.getOwner());
+		root.put("logGroup", first.getLogGroup());
+		root.put("logStream", first.getLogStream());
+
+		root.put("messageType", "DATA_MESSAGE");
+
+		return root;
+	}
+
+	protected String createJsonString(Collection<CloudWatchLogsEvent> events) throws IOException {
+		ObjectNode root = createJson(events);
+
+		try {
+			return JSON_OBJECT_MAPPER.writeValueAsString(root);
+		} catch (JsonProcessingException e) {
+			LOG.error("error while serializing to JSON", e);
+			return null;
+		}
+	}
 
     private static byte[] uncompress(byte[] compressedData) throws IOException {
         byte[] buffer = new byte[1024];

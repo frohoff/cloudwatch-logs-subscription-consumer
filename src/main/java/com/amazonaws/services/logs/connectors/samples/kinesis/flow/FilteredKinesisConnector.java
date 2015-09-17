@@ -19,7 +19,7 @@ import java.util.Properties;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.kinesis.connectors.KinesisConnectorConfiguration;
 import com.amazonaws.services.kinesis.connectors.KinesisConnectorRecordProcessorFactory;
-import com.amazonaws.services.kinesis.connectors.kinesis.KinesisEmitter.Record;
+import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.logs.connectors.samples.AbstractConnectorExecutor;
 import com.amazonaws.services.logs.subscriptions.CloudWatchLogsEvent;
 

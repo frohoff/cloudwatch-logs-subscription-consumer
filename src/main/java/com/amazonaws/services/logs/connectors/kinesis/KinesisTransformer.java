@@ -17,6 +17,7 @@ package com.amazonaws.services.logs.connectors.kinesis;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,7 +31,7 @@ import org.apache.commons.logging.LogFactory;
 
 import com.amazonaws.services.kinesis.connectors.interfaces.IBatchingCollectionTransformer;
 import com.amazonaws.services.kinesis.connectors.kinesis.KinesisEmitter;
-import com.amazonaws.services.kinesis.connectors.kinesis.KinesisEmitter.Record;
+import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.logs.subscriptions.CloudWatchLogsEvent;
 import com.amazonaws.services.logs.subscriptions.CloudWatchLogsSubscriptionTransformer;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -42,17 +43,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 /**
  * Transforms CloudWatchLogsEvent objects to compressed JSON.
  */
-public class KinesisTransformer extends CloudWatchLogsSubscriptionTransformer<KinesisEmitter.Record> implements IBatchingCollectionTransformer<CloudWatchLogsEvent, KinesisEmitter.Record> {
+public class KinesisTransformer extends CloudWatchLogsSubscriptionTransformer<Record> implements IBatchingCollectionTransformer<CloudWatchLogsEvent, Record> {
 
     private static final Log LOG = LogFactory.getLog(KinesisTransformer.class);
 
     private static final ObjectMapper JSON_OBJECT_MAPPER = new ObjectMapper();
 
 	private static final int MAX_KINESIS_RECORD_SIZE = 1024 * 1024; // 1 MB
-
-    static {
-        JSON_OBJECT_MAPPER.setSerializationInclusion(Include.NON_NULL);
-    }
 
 	@Override
 	public Record fromClass(CloudWatchLogsEvent record) throws IOException {
@@ -83,13 +80,13 @@ public class KinesisTransformer extends CloudWatchLogsSubscriptionTransformer<Ki
 	protected Collection<Record> createRecords(Collection<CloudWatchLogsEvent> events) throws IOException {
 		Record one = createRecord(events);
 		if (one != null) { // can be serialized properly
-			if (one.getData().length > MAX_KINESIS_RECORD_SIZE) {
+			if (one.getData().capacity() > MAX_KINESIS_RECORD_SIZE) {
 				if (events.size() == 1) {
 					LOG.error("event too large for kinesis record");
 					// return empty
 				} else {
 					// best guess split and retry
-					int bytesPerEvent = one.getData().length / events.size();
+					int bytesPerEvent = one.getData().capacity() / events.size();
 					// ensure split at least in half
 					int maxEventsPerPartition = Math.min(MAX_KINESIS_RECORD_SIZE / bytesPerEvent, events.size() / 2);
 					Collection<Collection<CloudWatchLogsEvent>> partitions =
@@ -123,33 +120,18 @@ public class KinesisTransformer extends CloudWatchLogsSubscriptionTransformer<Ki
 	protected Record createRecord(Collection<CloudWatchLogsEvent> events) throws IOException {
 		if (events.size() == 0) throw new IllegalArgumentException("events can't be empty");
 
-		ObjectNode root = JSON_OBJECT_MAPPER.createObjectNode();
-		ArrayNode eventNodes = root.putArray("logEvents");
+		ObjectNode root = createJson(events);
 
-		CloudWatchLogsEvent first = null;
-
-		for (CloudWatchLogsEvent event : events) {
-			if (first == null) first = event;
-
-			ObjectNode eventNode = eventNodes.addObject();
-			eventNode.put("id", event.getId());
-			eventNode.put("timestamp", "" + event.getTimestamp());
-			eventNode.put("message", event.getMessage());
-		}
-		root.put("owner", first.getOwner());
-		root.put("logGroup", first.getLogGroup());
-		root.put("logStream", first.getLogStream());
+		CloudWatchLogsEvent first = events.iterator().next();
 
 		String key = getPartitionKey(first);
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		String jsonString = createJsonString(events);
 
-		try {
-			JSON_OBJECT_MAPPER.writeValue(baos, root);
-			byte[] compressed = compress(baos.toByteArray());
-			return new Record(key, compressed);
-		} catch (JsonProcessingException e) {
-			LOG.error("unable to generate JSON for events " + events, e);
+		if (jsonString != null) {
+			byte[] compressed = compress(jsonString.getBytes());
+			return new Record().withData(ByteBuffer.wrap(compressed)).withPartitionKey(key);
+		} else {
 			return null;
 		}
 	}
